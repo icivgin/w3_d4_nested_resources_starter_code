@@ -88,9 +88,13 @@ app.delete('/api/phrases/:id', function(req, res) {
 
   // get the index of the found item
   var index = phrases.indexOf(foundPhrase);
-  
-  // remove the item at that index, only remove 1 item
-  phrases.splice(index, 1);
+  if (foundPhrase) {
+    // remove the item at that index, only remove 1 item
+    phrases.splice(index, 1);
+  }
+  else {
+    res.status(404).send('phrase not found');
+  }
   
   // send back deleted object
   res.json(foundPhrase);
@@ -114,42 +118,65 @@ app.route('/api/study-sets')
   .post(function(req,res){ // create a study set
     // grab set title and any included phrases from form data
     // set up new study-set object
-
+    var newStudySet = {title: req.body.title, phraseIds: req.body.phraseIds, notes: req.body.notes};
     // add a globally unique set id
-
+    totalSetCount++;
+    newStudySet.id = totalSetCount;
     // add new set to `studySets` array
-    
+    studySets.push(newStudySet);
     // send new set as JSON response
-    
+    res.json(studySets);
   });
 
 
 app.route('/api/study-sets/:setId')
   .get(function(req, res) {
     // save the value of the id, and find the set
+    var targetId = parseInt(req.params.setId);
+    var foundSet = _.findWhere(studySets, {id: targetId});
 
-    // send back the set
+    if(foundSet) {
+      // send back the set
+      res.json(foundSet);
+    }
+    else {
+      res.status(404).send('set not found');
+    }
   })
   .put(function(req,res){
     // set the value of the id
-
     // find item in `studySets` array matching the id
+    var targetId = parseInt(req.params.setId);
+    var foundSet = _.findWhere(studySets, {id: targetId});
+    var setPhraseIds = foundSet.phraseIds;
+    console.log(setPhraseIds); 
 
-    // update the set's title
-
-    // update the set's phrase id list
-
+    if (foundSet) {
+      // update the set's title
+      foundSet.title = req.body.title;
+      // update the set's phrase id list
+      foundSet.phraseIds = foundSet.phraseIds.push(req.body.phraseIds)
+      res.json(foundSet);
+    }
+    else {
+      res.status(404).send('set not found');
+    }
     // send back edited object
   });
 
 app.route('/api/study-sets/:setId/phrases')
   .get(function(req, res){  // get all phrases in this set
     // save the value of the set id
-
+    var setId = parseInt(req.params.setId);
+    var foundSet = _.findWhere(studySets, {id: setId});
+    console.log(foundSet);
+    if(foundSet) {
+      res.json(foundSet.phraseIds);
+    }
+    else {
+      res.status(404).send('set not found');
+    }
     // find the study set with that id
-
-    // send back the array of phrase ids from that study set
-
   });
 
 app.route('/api/study-sets/:setId/phrases/:phraseId')
@@ -177,14 +204,26 @@ app.route('/api/study-sets/:setId/phrases/:phraseId')
   })
   .delete(function(req, res){  // remove this phrase from this set
     // save the value of the set id, and find the study set with that id
-    
+    var setId = parseInt(req.params.setId);
+    var foundSet = _.findWhere(studySets, {id: setId}); 
     // save the phrase id, and find the phrase
-   
+   var phraseId = parseInt(req.params.phraseId);
+   var foundPhrase = _.findWhere(phrases, {id: phraseId});
+
     // if we find the set and the phrase is in there:
+    if (foundSet && foundPhrase && foundSet.phraseIds.indexOf(phraseId) >= 0) {
       // remove phrase id from this set's phrases
       // let the client know about our success!
-
-    // otherwise send a failure response
+      foundSet.phraseIds.splice(foundSet.phraseIds.indexOf(phraseId), 1);
+      res.json(foundSet);
+    }
+    else if (!foundSet) {
+      res.status(404).send('set not found');
+    }
+    else {
+      res.status(404).send('phrase not found');
+    }
+    // otherwise send a failure response ^^
   });
 
 app.route('/api/study-sets/:setId/notes')
